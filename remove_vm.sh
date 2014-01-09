@@ -1,7 +1,7 @@
 #!/bin/bash
 
 WORKDIR=`dirname $0`
-source $WORKDIR/common.sh
+source $WORKDIR/config-common.sh
 
 export LANG=C
 

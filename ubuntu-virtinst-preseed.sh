@@ -1,20 +1,34 @@
-#!/bin/bash
+#!/bin/bash -ex
+
+WORKDIR=`dirname $0`
+source $WORKDIR/config-common.sh
+source $WORKDIR/config-ubuntu.sh
 
 SUPPORTED="(lucid|oneiric|precise|quantal|raring|saucy|trusty)"
 ARCH=amd64
-SITE=http://ftp.riken.go.jp/Linux/ubuntu
-#SITE=http://ftp.jaist.ac.jp/pub/Linux/ubuntu
-PROXY=http://192.168.122.1:8000
 
-USERNAME=ubuntu
+SITE=${UBUNTU_SITE:-http://ftp.riken.go.jp/Linux/ubuntu}
+PROXY=${PROXY:-}
+DISKIMG_DIR=${DISKIMG_DIR:-$HOME/images}
+ISO_DIR=${ISO_DIR:-$HOME/iso/ubuntu}
+
+USERNAME=${USERNAME:-ubuntu}
 # Unless password is specified NAME is used for password by default
 #PASSWORD=ubuntu
+PASSWORD=${PASSWORD:-}
 
-NUM_CPU=2
-MEMORY=4096
+NUM_CPU=${NUM_CPU:-2}
+MEMORY=${MEMORY:-4096}
+DISKSIZE=${DISKSIZE:-20G}
 
-WORKDIR=`dirname $0`
-source $WORKDIR/common.sh
+# You can use the following keyword
+# %ISO_DIR%
+# %ARCH%
+# %RELEASE_NAME% : precise, quantal, ....
+# %RELEASE_VERSION% : 12.04, 12.10, ....
+# %RELEASE_FULLVER% (including minor version for LTS) : 12.04.3, 10.04.4
+ISO_LOCATION_FORMAT_DEFAULT=%ISO_DIR%/ubuntu-%RELEASE_FULLVER%-server-%ARCH%.iso
+ISO_LOCATION_FORMAT=${ISO_LOCATION_FORMAT:-$ISO_LOCATION_FORMAT_DEFAULT}
 
 if [ -z "$1" ]; then
     echo "Name must be specified!"
@@ -44,9 +58,9 @@ if [ -z "$PASSWORD" ]; then
     PASSWORD=$NAME
 fi
 
-DIST=$2
-if [[ ! "$DIST" =~ $SUPPORTED ]]; then
-    echo "Release '$DIST' is not supported."
+RELEASE_NAME=$2
+if [[ ! "$RELEASE_NAME" =~ $SUPPORTED ]]; then
+    echo "Release '$RELEASE_NAME' is not supported."
     echo "$SUPPORTED must be specified"
     exit 2
 fi
@@ -56,37 +70,46 @@ if [ "$ARCH" == "amd64" ]; then
 else
     VIRT_ARCH=i386
 fi
-case "$DIST" in
+case "$RELEASE_NAME" in
   lucid)
-    DIST_VER=10.04.4
+    RELEASE_FULLVER=10.04.4
     ;;
   precise)
-    DIST_VER=12.04.3
+    RELEASE_FULLVER=12.04.3
     ;;
   quantal)
-    DIST_VER=12.10
+    RELEASE_FULLVER=12.10
     ;;
   raring)
-    DIST_VER=13.04
+    RELEASE_FULLVER=13.04
     ;;
   saucy)
-    DIST_VER=13.10
+    RELEASE_FULLVER=13.10
     ;;
 esac
 
-LOCATION=$SITE/dists/$DIST/main/installer-$ARCH/
-if [ -n "$DIST_VER" ]; then
-    ISO_LOCATION=$ISO_DIR/ubuntu-${DIST_VER}-server-${ARCH}.iso
+LOCATION=$SITE/dists/$RELEASE_NAME/main/installer-$ARCH/
+if [ -n "$RELEASE_FULLVER" ]; then
+    RELEASE_VERSION=`echo $RELEASE_FULLVER | cut -d . -f 1-2`
+    ISO_LOCATION=`echo $ISO_LOCATION_FORMAT | sed \
+                      -e "s|%ISO_DIR%|$ISO_DIR|g" \
+                      -e "s|%ARCH%|$ARCH|g" \
+                      -e "s|%RELEASE_NAME%|$RELEASE_NAME|g" \
+                      -e "s|%RELEASE_VERSION%|$RELEASE_VERSION|g" \
+                      -e "s|%RELEASE_FULLVER%|$RELEASE_FULLVER|g" \
+                 `
+    echo $ISO_LOCATION
     if [ -f $ISO_LOCATION ]; then
         LOCATION=$ISO_LOCATION
     fi
 fi
 
-PRESEED_DIR=/tmp/preseed$$
-PRESEED_BASENAME=preseed.cfg
-PRESEED_FILE=$PRESEED_DIR/$PRESEED_BASENAME
-mkdir -p $PRESEED_DIR
-cat > $PRESEED_FILE <<EOF
+function generate_preseed_cfg() {
+    PRESEED_DIR=/tmp/preseed$$
+    PRESEED_BASENAME=preseed.cfg
+    PRESEED_FILE=$PRESEED_DIR/$PRESEED_BASENAME
+    mkdir -p $PRESEED_DIR
+    cat > $PRESEED_FILE <<EOF
 d-i debian-installer/language string en
 d-i debian-installer/locale string en_US.UTF-8
 d-i debian-installer/country string JP
@@ -139,39 +162,74 @@ d-i grub-installer/with_other_os boolean true
 
 d-i finish-install/reboot_in_progress note
 EOF
+}
 
-if [ ! -f $DISK ]; then
-    qemu-img create -f qcow2 $DISK 20G
+function cleanup_preseed_cfg() {
+    rm -v -f $PRESEED_FILE
+    rmdir -v $PRESEED_DIR
+}
+
+function create_disk() {
+    if [ ! -f $DISK ]; then
+        qemu-img create -f qcow2 $DISK $DISKSIZE
+    fi
+}
+
+function virtinst_with_preseed() {
+    sudo virt-install \
+        --name $NAME \
+        --os-type linux \
+        --os-variant ubuntu${RELEASE_NAME} \
+        --virt-type kvm \
+        --connect=qemu:///system \
+        --vcpus $NUM_CPU \
+        --ram $MEMORY \
+        --arch $VIRT_ARCH \
+        --serial pty \
+        --console pty \
+        --disk=$DISK,format=qcow2,bus=virtio \
+        --nographics \
+        --location $LOCATION \
+        --initrd-inject $PRESEED_FILE \
+        --extra-args "
+    console=ttyS0,115200
+    file=/$PRESEED_BASENAME
+    auto=true
+    priority=critical
+    interface=auto
+    language=en
+    country=JP
+    locale=en_US.UTF-8
+    console-setup/layoutcode=jp
+    console-setup/ask_detect=false
+    " \
+        --network network=default,model=virtio
+}
+
+function virtinst_without_preseed() {
+    sudo virt-install \
+        --name $NAME \
+        --os-type linux \
+        --os-variant ubuntu${RELEASE_NAME} \
+        --virt-type kvm \
+        --connect=qemu:///system \
+        --vcpus $NUM_CPU \
+        --ram $MEMORY \
+        --arch $VIRT_ARCH \
+        --serial pty \
+        --console pty \
+        --disk=$DISK,format=qcow2,bus=virtio \
+        --nographics \
+        --location $LOCATION \
+        --extra-args "console=ttyS0,115200" \
+        --network network=default,model=virtio
+}
+
+create_disk
+if [ "$NO_PRESEED" != "true" ]; then
+    generate_preseed_cfg
+    virtinst_with_preseed
+    cleanup_preseed_cfg
+else
+    virtinst_without_preseed
 fi
-
-sudo virt-install \
-    --name $NAME \
-    --os-type linux \
-    --os-variant ubuntu${DIST} \
-    --virt-type kvm \
-    --connect=qemu:///system \
-    --vcpus $NUM_CPU \
-    --ram $MEMORY \
-    --arch $VIRT_ARCH \
-    --serial pty \
-    --console pty \
-    --disk=$DISK,format=qcow2,bus=virtio \
-    --nographics \
-    --location $LOCATION \
-    --initrd-inject $PRESEED_FILE \
-    --extra-args "
-console=ttyS0,115200
-file=/$PRESEED_BASENAME
-auto=true
-priority=critical
-interface=auto
-language=en
-country=JP
-locale=en_US.UTF-8
-console-setup/layoutcode=jp
-console-setup/ask_detect=false
-" \
-    --network network=default,model=virtio
-
-rm -v -f $PRESEED_FILE
-rmdir -v $PRESEED_DIR
