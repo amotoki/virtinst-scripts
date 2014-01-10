@@ -3,6 +3,8 @@
 WORKDIR=`dirname $0`
 source $WORKDIR/config-common.sh
 
+DISKIMG_DIR=${DISKIMG_DIR:-$HOME/images}
+
 export LANG=C
 
 if [ -z "$1" ]; then
