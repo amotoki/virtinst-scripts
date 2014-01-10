@@ -20,6 +20,7 @@ PASSWORD=${PASSWORD:-}
 NUM_CPU=${NUM_CPU:-2}
 MEMORY=${MEMORY:-4096}
 DISKSIZE=${DISKSIZE:-20G}
+DISKFORMAT=${DISKFORMAT:-qcow2}
 
 # You can use the following keyword
 # %ISO_DIR%
@@ -171,7 +172,7 @@ function cleanup_preseed_cfg() {
 
 function create_disk() {
     if [ ! -f $DISK ]; then
-        qemu-img create -f qcow2 $DISK $DISKSIZE
+        qemu-img create -f $DISKFORMAT $DISK $DISKSIZE
     fi
 }
 
@@ -187,7 +188,7 @@ function virtinst_with_preseed() {
         --arch $VIRT_ARCH \
         --serial pty \
         --console pty \
-        --disk=$DISK,format=qcow2,bus=virtio \
+        --disk=$DISK,format=$DISKFORMAT,bus=virtio \
         --nographics \
         --location $LOCATION \
         --initrd-inject $PRESEED_FILE \
