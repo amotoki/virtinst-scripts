@@ -1,7 +1,8 @@
 #!/bin/bash
 
 WORKDIR=`dirname $0`
-source $WORKDIR/config-common.sh
+CONFIG_FILE=$WORKDIR/config.sh
+[ -f $CONFIG_FILE ] && source $CONFIG_FILE
 
 DISKIMG_DIR=${DISKIMG_DIR:-$HOME/images}
 

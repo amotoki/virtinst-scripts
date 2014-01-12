@@ -1,26 +1,24 @@
-#!/bin/bash -ex
+#!/bin/bash -e
 
 WORKDIR=`dirname $0`
-source $WORKDIR/config-common.sh
-source $WORKDIR/config-ubuntu.sh
+CONFIG_FILE=$WORKDIR/config.sh
+[ -f $CONFIG_FILE ] && source $CONFIG_FILE
 
 SUPPORTED="(lucid|oneiric|precise|quantal|raring|saucy|trusty)"
 ARCH=amd64
 
 SITE=${UBUNTU_SITE:-http://ftp.riken.go.jp/Linux/ubuntu}
-PROXY=${PROXY:-}
+PROXY=${UBUNTU_PROXY:-${PROXY:-$http_proxy}}
 DISKIMG_DIR=${DISKIMG_DIR:-$HOME/images}
-ISO_DIR=${ISO_DIR:-$HOME/iso/ubuntu}
+ISO_DIR=${UBUNTU_ISO_DIR:-$HOME/iso/ubuntu}
 
-USERNAME=${USERNAME:-ubuntu}
+USERNAME=ubuntu
 # Unless password is specified NAME is used for password by default
-#PASSWORD=ubuntu
-PASSWORD=${PASSWORD:-}
-
-NUM_CPU=${NUM_CPU:-2}
-MEMORY=${MEMORY:-4096}
-DISKSIZE=${DISKSIZE:-20G}
-DISKFORMAT=${DISKFORMAT:-qcow2}
+PASSWORD=
+NUM_CPU=1
+MEMORY=4096
+DISKSIZE=20G
+DISKFORMAT=qcow2
 
 # You can use the following keyword
 # %ISO_DIR%
@@ -29,27 +27,68 @@ DISKFORMAT=${DISKFORMAT:-qcow2}
 # %RELEASE_VERSION% : 12.04, 12.10, ....
 # %RELEASE_FULLVER% (including minor version for LTS) : 12.04.3, 10.04.4
 ISO_LOCATION_FORMAT_DEFAULT=%ISO_DIR%/ubuntu-%RELEASE_FULLVER%-server-%ARCH%.iso
-ISO_LOCATION_FORMAT=${ISO_LOCATION_FORMAT:-$ISO_LOCATION_FORMAT_DEFAULT}
+ISO_LOCATION_FORMAT=${UBUNTU_ISO_LOCATION_FORMAT:-$ISO_LOCATION_FORMAT_DEFAULT}
+
+function usage() {
+    cat <<EOF
+Usage: $0 [options] NAME RELEASE
+
+Options:
+  -a ARCH       : VM architecture: x86_64, i386 (default: $ARCH)
+  -c NUM_CPU    : VM number of CPU (default: $NUM_CPU)
+  -m MEMORY     : VM memory size [MB] (default: $MEMORY)
+  -f DISKFORMAT : QEMU image format: qcow2, raw (default: $DISKFORMAT)
+  -s DISKSIZE   : QEMU image size, e.g., 50G (default: $DISKSIZE)
+  -u USERNAME   : Username of the default user (default: $USERNAME)
+  -p PASSWORD   : Password for the default user (default: $PASSWORD)
+  -P            : Do not use preseed.cfg
+
+Configurations:
+  DISKIMG_DIR=$DISKIMG_DIR
+  UBUNTU_SITE=$SITE
+  UBUNTU_PROXY=$PROXY
+  UBUNTU_ISO_DIR=$ISO_DIR
+  UBUNTU_ISO_LOCATION_FORMAT=$ISO_LOCATION_FORMAT
+EOF
+    exit 1
+}
+
+while getopts "a:c:m:f:s:u:p:Ph" OPT; do
+    case $OPT in
+        a) ARCH=$OPTARG
+           if [ "$ARCH" != "i386" -a "$ARCH" != "amd64" ]; then
+               echo "Arch must be either amd64 or i386."
+               exit 1
+           fi
+           ;;
+        c) NUM_CPU=$OPTARG; ;;
+        m) MEMORY=$OPTARG; ;;
+        f) DISKFORMAT=$OPTARG
+           if [ "$DISKFORMAT" != "qcow2" -a "$DISKFORMAT" != "raw" ]; then
+               echo "Disk format must be either qcow2 or raw."
+               exit 1
+           fi
+           ;;
+        s) DISKSIZE=$OPTARG; ;;
+        u) USERNAME=$OPTARG; ;;
+        p) PASSWORD=$OPTARG; ;;
+        P) NO_PRESEED=true; ;;
+        ?) usage
+           ;;
+    esac
+done
+shift `expr $OPTIND - 1`
 
 if [ -z "$1" ]; then
     echo "Name must be specified!"
-    echo "Usage: $0 NAME RELEASE [i386|amd64]"
+    usage
     exit 1
 fi
 
 if [ -z "$2" ]; then
     echo "release must be specified! $SUPPORTED"
-    echo "Usage: $0 NAME RELEASE [i386|amd64]"
+    echo "Usage: $0 [options] NAME RELEASE"
     exit 1
-fi
-
-if [ -n "$3" ]; then
-    if [ "$3" == "i386" -o "$3" == "amd64" ]; then
-        ARCH=$3
-    else
-        echo "Arch must be either amd64 or i386."
-        exit 1
-    fi
 fi
 
 NAME=$1
@@ -99,7 +138,6 @@ if [ -n "$RELEASE_FULLVER" ]; then
                       -e "s|%RELEASE_VERSION%|$RELEASE_VERSION|g" \
                       -e "s|%RELEASE_FULLVER%|$RELEASE_FULLVER|g" \
                  `
-    echo $ISO_LOCATION
     if [ -f $ISO_LOCATION ]; then
         LOCATION=$ISO_LOCATION
     fi
