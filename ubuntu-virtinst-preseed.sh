@@ -117,14 +117,17 @@ case "$RELEASE_NAME" in
   precise)
     RELEASE_FULLVER=12.04.3
     ;;
-  quantal)
-    RELEASE_FULLVER=12.10
-    ;;
-  raring)
-    RELEASE_FULLVER=13.04
-    ;;
   saucy)
     RELEASE_FULLVER=13.10
+    ;;
+  trusty)
+    RELEASE_FULLVER=14.04.01
+    ;;
+  utopic)
+    RELEASE_FULLVER=14.10
+    ;;
+  vivid)
+    RELEASE_FULLVER=15.04
     ;;
 esac
 
