@@ -12,3 +12,6 @@
 
 #UBUNTU_ISO_DIR=$HOME/iso/ubuntu
 #UBUNTU_ISO_LOCATION_FORMAT=%ISO_DIR%/ubuntu-%RELEASE_FULLVER%-server-%ARCH%.iso
+
+#PASSWORD=hogehoge
+#NTPSERVER=ntp.nict.jp

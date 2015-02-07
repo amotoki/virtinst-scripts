@@ -11,10 +11,11 @@ SITE=${UBUNTU_SITE:-http://ftp.riken.go.jp/Linux/ubuntu}
 PROXY=${UBUNTU_PROXY:-${PROXY:-$http_proxy}}
 DISKIMG_DIR=${DISKIMG_DIR:-$HOME/images}
 ISO_DIR=${UBUNTU_ISO_DIR:-$HOME/iso/ubuntu}
+NTPSERVER=${NTPSERVER:-ntp.nict.jp}
 
 USERNAME=ubuntu
 # Unless password is specified NAME is used for password by default
-PASSWORD=
+#PASSWORD=
 NUM_CPU=1
 MEMORY=4096
 DISKSIZE=20G
@@ -177,7 +178,7 @@ d-i mirror/http/mirror select jp.archive.ubuntu.com
 d-i clock-setup/utc boolean true
 d-i time/zone string Asia/Tokyo
 d-i clock-setup/ntp boolean true
-d-i clock-setup/ntp-server string ntp.nict.jp
+d-i clock-setup/ntp-server string $NTPSERVER
 
 d-i partman-auto/method string lvm
 d-i partman-lvm/device_remove_lvm boolean true
@@ -199,7 +200,7 @@ d-i user-setup/encrypt-home boolean false
 
 #tasksel tasksel/first multiselect
 tasksel tasksel/first multiselect standard
-d-i pkgsel/include string openssh-server build-essential acpid git-core
+d-i pkgsel/include string openssh-server build-essential acpid git-core ntp
 d-i pkgsel/upgrade select none
 d-i pkgsel/update-policy select none
 
