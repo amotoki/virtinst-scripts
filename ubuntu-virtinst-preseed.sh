@@ -4,7 +4,7 @@ WORKDIR=`dirname $0`
 CONFIG_FILE=$WORKDIR/config.sh
 [ -f $CONFIG_FILE ] && source $CONFIG_FILE
 
-SUPPORTED="(lucid|oneiric|precise|quantal|raring|saucy|trusty)"
+SUPPORTED="(lucid|precise|saucy|trusty|utopic|vivid)"
 ARCH=amd64
 
 SITE=${UBUNTU_SITE:-http://ftp.riken.go.jp/Linux/ubuntu}
@@ -128,8 +128,12 @@ case "$RELEASE_NAME" in
     ;;
   vivid)
     RELEASE_FULLVER=15.04
+    OS_VARIANT=ubuntuutopic
     ;;
 esac
+if [ -z "$OS_VARIANT" ]; then
+  OS_VARIANT=ubuntu${RELEASE_NAME}
+fi
 
 LOCATION=$SITE/dists/$RELEASE_NAME/main/installer-$ARCH/
 if [ -n "$RELEASE_FULLVER" ]; then
@@ -221,7 +225,7 @@ function virtinst_with_preseed() {
     sudo virt-install \
         --name $NAME \
         --os-type linux \
-        --os-variant ubuntu${RELEASE_NAME} \
+        --os-variant $OS_VARIANT \
         --virt-type kvm \
         --connect=qemu:///system \
         --vcpus $NUM_CPU \
