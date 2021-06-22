@@ -16,9 +16,9 @@ NTPSERVER=${NTPSERVER:-ntp.nict.jp}
 USERNAME=ubuntu
 # Unless password is specified NAME is used for password by default
 #PASSWORD=
-NUM_CPU=1
-MEMORY=4096
-DISKSIZE=20G
+NUM_CPU=4
+MEMORY=8192
+DISKSIZE=50G
 DISKFORMAT=qcow2
 
 # You can use the following keyword
