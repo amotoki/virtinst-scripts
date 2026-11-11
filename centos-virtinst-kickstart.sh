@@ -5,7 +5,7 @@ CONFIG_FILE=$WORKDIR/config.sh
 [ -f $CONFIG_FILE ] && source $CONFIG_FILE
 
 DISKIMG_DIR=${DISKIMG_DIR:-$HOME/images}
-SITE=${CENTOS_SITE:-http://ftp.riken.jp/Linux/centos}
+SITE=${CENTOS_SITE:-https://vault.centos.org}
 PROXY=${CENTOS_PROXY:-${PROXY:-$http_proxy}}
 
 ARCH=x86_64
@@ -121,7 +121,6 @@ reboot
 %packages
 @core
 @base
-@japanese-support
 %end
 EOF
 }
@@ -133,8 +132,7 @@ function virt_install() {
     --ram $MEMORY \
     --vcpus $NUM_CPU \
     --arch $ARCH \
-    --os-type linux \
-    --os-variant rhel6 \
+    --osinfo centos7 \
     --boot hd \
     --disk $DISK,format=$DISKFORMAT,bus=virtio \
     --network network=default,model=virtio \
@@ -142,7 +140,7 @@ function virt_install() {
     --console pty \
     --location $LOCATION \
     --initrd-inject $KSFILE \
-    --extra-args "ks=file:/`basename $KSFILE` console=ttyS0,115200" \
+    --extra-args "inst.noverifyssl ks=file:/`basename $KSFILE` console=ttyS0,115200" \
     --nographics
 
     #--graphics vnc \
